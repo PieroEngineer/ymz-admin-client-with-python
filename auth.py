@@ -14,9 +14,11 @@ import base64
 import hashlib
 import hmac
 from dataclasses import dataclass
+import time
 
 import boto3
 from pycognito import Cognito
+# from botocore.config import Config
 from botocore.exceptions import ClientError
 
 from config import CognitoConfig
@@ -93,15 +95,23 @@ class CognitoAuthenticator:
                 user_pool_id=self._config.user_pool_id,
                 client_id=self._config.app_client_id,
                 # client_secret=self._config.app_client_secret, # Pass if you have a client secret
-                username=email
+                username=email,
+                # botocore_config=Config(
+                #     connect_timeout=5,
+                #     read_timeout=15,
+                #     retries={"total_max_attempts": 1},
+                # ),
             )
             
             print("🔑  Signing in...")
+
             
+            start_time = time.perf_counter()
             # This handles the ALLOW_USER_SRP_AUTH flow and SRP_A math automatically
             cog.authenticate(password=password)
+            end_time = time.perf_counter()
 
-            print("✅  Sign-in successful.")
+            print(f"✅  Sign-in successful. Time taken: {end_time - start_time:.2f} seconds.")
             
             return AuthTokens(
                 id_token=cog.id_token,
