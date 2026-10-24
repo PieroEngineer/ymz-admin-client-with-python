@@ -83,3 +83,80 @@ class ActiveRequests:
                 data, "arrivalTimeInMinutes", context=context
             ),
         )
+
+
+@dataclass(frozen=True, slots=True)
+class OrderItemPayload:
+    dish_id: str
+    dish_name: str
+    quantity: int | float
+    historical_unit_price_in_cents: int | float
+    complementary_dish_id: str
+
+    @classmethod
+    def from_dict(cls, data: Mapping[str, Any]) -> OrderItemPayload:
+        context = "OrderItemPayload"
+        return cls(
+            dish_id=str(_require(data, "dishId", context=context)),
+            dish_name=str(_require(data, "dishName", context=context)),
+            quantity=_require_number(data, "quantity", context=context),
+            historical_unit_price_in_cents=_require_number(
+                data, "historicalUnitPriceInCents", context=context
+            ),
+            complementary_dish_id=str(
+                _require(data, "complementaryDishId", context=context)
+            ),
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class Order:
+    user_id: str
+    request_id: str
+    order_id: str
+    user_name: str
+    # Keep the backend's current field name despite its known typing error.
+    arrival_time_in_minutes: int | float
+    group_size: int | float
+    order_selections: list[OrderItemPayload]
+    total_cost_in_cents: int | float
+    on_paid_time_stamp: int | float
+    payment_image_url: str
+    extra_commentaries: str
+
+    @classmethod
+    def from_dict(cls, data: Mapping[str, Any]) -> Order:
+        context = "Order"
+        selections = _require(data, "orderSelections", context=context)
+        if not isinstance(selections, list):
+            raise ModelParseError(f"{context}: 'orderSelections' must be a list")
+        if not all(isinstance(item, Mapping) for item in selections):
+            raise ModelParseError(
+                f"{context}: every 'orderSelections' item must be an object"
+            )
+
+        return cls(
+            user_id=str(_require(data, "userId", context=context)),
+            request_id=str(_require(data, "requestId", context=context)),
+            order_id=str(_require(data, "orderId", context=context)),
+            user_name=str(_require(data, "userName", context=context)),
+            arrival_time_in_minutes=_require_number(
+                data, "arrivalTimeInMinutes", context=context
+            ),
+            group_size=_require_number(data, "groupSize", context=context),
+            order_selections=[
+                OrderItemPayload.from_dict(item) for item in selections
+            ],
+            total_cost_in_cents=_require_number(
+                data, "totalCostInCents", context=context
+            ),
+            on_paid_time_stamp=_require_number(
+                data, "onPaidTimeStamp", context=context
+            ),
+            payment_image_url=str(
+                _require(data, "paymentImageUrl", context=context)
+            ),
+            extra_commentaries=str(
+                _require(data, "extraCommentaries", context=context)
+            ),
+        )

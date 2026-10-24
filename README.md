@@ -41,4 +41,6 @@ Only `boto3` is a third-party dependency — the HTTP calls use the standard lib
 
 - **Restaurant feed:** `restaurants/feed` returns a list of `FeedItem` objects with restaurant identity, branding, section, dishes, location, and contact information. `get_all_restaurants()` currently fetches this feed in one request; add pagination if its size grows.
 - **Tracking requests:** `tracking/{restaurantId}/{from}/{to}/requests` returns a `restaurantRequests` list of `ActiveRequests`. The CLI displays request state, user, queue timestamp, and arrival time.
+- **Date-wide tracking requests:** `{from}/{to}/requests` returns the same `restaurantRequests` array and is available through `get_tracking_requests_by_date()`.
+- **Orders:** `{from}/{to}/orders` and `{restaurantId}/{from}/{to}/orders` return a `restaurantOrders` array of `Order` objects. Each order parses its nested `orderSelections` as `OrderItemPayload` objects.
 - **Required fields raise clearly.** Missing fields and invalid response shapes raise `ModelParseError` instead of failing later during display.

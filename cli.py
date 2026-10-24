@@ -10,7 +10,7 @@ from admin_api import AdminService
 from auth import AuthError, AuthTokens, CognitoAuthenticator
 from config import ConfigError, Settings
 from http_client import ApiClient, ApiError
-from models import ActiveRequests, FeedItem, ModelParseError
+from models import ModelParseError
 
 
 def _prompt_credentials() -> tuple[str, str]:
@@ -51,37 +51,9 @@ def _sign_in_flow(authenticator: CognitoAuthenticator) -> AuthTokens | None:
         print(f"Sign-in failed: {err}")
         return None
 
-
-def _print_restaurants(feed_items: list[FeedItem]) -> None:
-    if not feed_items:
-        print("No restaurants found.")
-        return
-    print(f"{'ID':<24} {'Name':<30} {'Section':<18} Phone")
-    print("-" * 95)
-    for item in feed_items:
-        print(
-            f"{item.id:<24} {item.name:<30} "
-            f"{item.section_type:<18} {item.phone_number_to_contact}"
-        )
-
-
-def _print_tracking(requests: list[ActiveRequests]) -> None:
-    if not requests:
-        print("No requests in that range.")
-        return
-    print(f"{'Request ID':<30} {'State':<12} {'User ID':<30} Queued   Arrival (min)")
-    print("-" * 105)
-    for item in requests:
-        print(
-            f"{item.request_id:<30} {item.state:<12} {item.user_id:<30} "
-            f"{item.on_queued_timestamp} {item.arrival_time_in_minutes}"
-        )
-    print(f"\n{len(requests)} request(s) shown.")
-
-
-def _feed_menu(service: AdminService) -> None:
+def _track_all_restaurants(service: AdminService) -> None:
     try:
-        feed_items = service.get_all_restaurants()
+        feed_items = service.retrieve_all_restaurants()
     except (ApiError, ModelParseError) as err:
         print(f"Could not load restaurant feed: {err}")
         return
@@ -89,19 +61,57 @@ def _feed_menu(service: AdminService) -> None:
     pp(feed_items)
 
 
-def _tracking_menu(service: AdminService) -> None:
-    restaurant_id = input("Restaurant ID: ").strip()
-    date_from = input("From (YYYY-MM-DD): ").strip()
-    date_to = input("To (YYYY-MM-DD): ").strip()   # TODO: Ask again if the date is earlier than the from
+# def _track_restaurant_requests(service: AdminService) -> None:
+#     restaurant_id = input("Restaurant ID: ").strip()
+#     date_from = input("From (YYYY-MM-DD): ").strip()
+#     date_to = input("To (YYYY-MM-DD): ").strip()   # TODO: Ask again if the date is earlier than the from
+#     try:
+#         requests = service.retrieve_restaurant_requests_for_a_period(
+#             restaurant_id=restaurant_id, date_from=date_from, date_to=date_to
+#         )
+#     except (ApiError, ModelParseError) as err:
+#         print(f"Could not load tracking data: {err}")
+#         return
+#     # _print_tracking(requests)
+#     pp(requests)
+
+
+def _track_requests(service: AdminService, restaurant_scoped: bool) -> None:
+    restaurant_id = input("Restaurant ID: ").strip() if restaurant_scoped else None
+    date_from = input("From (YYYY-MM-DD): ").strip()    # TODO: Edit it because the backend is in UTC
+    date_to = input("To (YYYY-MM-DD): ").strip()
     try:
-        requests = service.get_tracking_requests(
-            restaurant_id=restaurant_id, date_from=date_from, date_to=date_to
-        )
+        if restaurant_id is None:
+            requests = service.retrieve_requests_for_a_period(
+                date_from=date_from, date_to=date_to
+            )
+        else:
+            requests = service.retrieve_restaurant_requests_for_a_period(
+                restaurant_id=restaurant_id, date_from=date_from, date_to=date_to
+            )
     except (ApiError, ModelParseError) as err:
         print(f"Could not load tracking data: {err}")
         return
-    # _print_tracking(requests)
     pp(requests)
+
+
+def _track_orders(service: AdminService, *, restaurant_scoped: bool) -> None:
+    restaurant_id = input("Restaurant ID: ").strip() if restaurant_scoped else None
+    date_from = input("From (YYYY-MM-DD): ").strip()    # TODO: Edit it because the backend is in UTC
+    date_to = input("To (YYYY-MM-DD): ").strip()
+    try:
+        if restaurant_id is None:
+            orders = service.retrieve_orders_for_a_period(date_from=date_from, date_to=date_to)
+        else:
+            orders = service.retrieve_restaurant_orders_for_a_period(
+                restaurant_id=restaurant_id,
+                date_from=date_from,
+                date_to=date_to,
+            )
+    except (ApiError, ModelParseError) as err:
+        print(f"Could not load orders: {err}")
+        return
+    pp(orders)
 
 
 def run() -> None:
@@ -114,16 +124,17 @@ def run() -> None:
     authenticator = CognitoAuthenticator(settings.cognito)
     tokens: AuthTokens | None = None
 
-    while tokens is None:
-        choice = input("[1] Sign in  |  [2] Sign up  |  [3] Quit\n> ").strip()
-        if choice == "1":
-            tokens = _sign_in_flow(authenticator)
-        elif choice == "2":
-            _sign_up_flow(authenticator)
-        elif choice == "3":
-            return
-        else:
-            print("Invalid option.")
+    tokens = _sign_in_flow(authenticator)
+    # while tokens is None:
+    #     choice = input("[1] Sign in  |  [2] Sign up  |  [3] Quit\n> ").strip()
+    #     if choice == "1":
+    #         tokens = _sign_in_flow(authenticator)
+    #     elif choice == "2":
+    #         _sign_up_flow(authenticator)
+    #     elif choice == "3":
+    #         return
+    #     else:
+    #         print("Invalid option.")
 
     # access_token is used here; see README.md for when to use id_token instead.
     api_client = ApiClient(settings.api, bearer_token=tokens.access_token)
@@ -131,13 +142,21 @@ def run() -> None:
 
     while True:
         choice = input(
-            "\n[1] Restaurant feed  [2] Tracking requests  [3] Quit\n> "
+            "\n[1] Restaurant feed  [2] Restaurant tracking requests  "
+            "[3] Tracking requests by date  [4] Orders by date  "
+            "[5] Restaurant orders  [6] Quit\n> "
         ).strip()
         if choice == "1":
-            _feed_menu(service)
+            _track_all_restaurants(service, restaurant_scoped=False)
         elif choice == "2":
-            _tracking_menu(service)
+            _track_all_restaurants(service, restaurant_scoped=True)
         elif choice == "3":
+            _track_requests(service)
+        elif choice == "4":
+            _track_orders(service, restaurant_scoped=False)
+        elif choice == "5":
+            _track_orders(service, restaurant_scoped=True)
+        elif choice == "6":
             return
         else:
             print("Invalid option.")
