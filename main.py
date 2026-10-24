@@ -3,5 +3,11 @@ from __future__ import annotations
 
 from cli import run
 
+# ------------------------------------------------------------
+# Credits: Made by Piero Olivas Tuesta 😉
+# LinkedIn: /pieroengineerperu
+# Email: psot14022001@gmail.com
+# ------------------------------------------------------------
+
 if __name__ == "__main__":
     run()
