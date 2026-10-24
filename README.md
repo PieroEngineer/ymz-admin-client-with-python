@@ -2,18 +2,6 @@
 
 ## 1. Point the client at your Cognito user pool
 
-Nothing is hardcoded — everything comes from environment variables, so
-the same code works against dev/staging/prod:
-
-```bash
-export YUMMIZI_USER_POOL_ID="us-east-1_xxxxxxx"
-export YUMMIZI_APP_CLIENT_ID="xxxxxxxxxxxxxxxxxxxxxxxxxx"
-export YUMMIZI_REGION="us-east-1"
-export YUMMIZI_API_URL="https://abc123.execute-api.us-east-1.amazonaws.com"
-# Only set this if the app client has a secret (confidential client):
-export YUMMIZI_APP_CLIENT_SECRET="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
-```
-
 ### Required app client configuration
 
 This CLI uses the `USER_PASSWORD_AUTH` flow (`initiate_auth` with plain username/password), not SRP — far less boto3 ceremony for a terminal tool. On the app client used by this CLI:
